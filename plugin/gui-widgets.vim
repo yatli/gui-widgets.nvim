@@ -21,7 +21,7 @@ function GuiWidgetDelete(id)
 endfunction
 
 function GuiWidgetPlace(id,bufnr,row,col)
-  return luaeval('require("gui-widgets").place(_A[1],_A[2],_A[3],_A[4])',a:id,a:bufnr,a:row,a:col)
+  return luaeval('require("gui-widgets").place(_A[1],_A[2],_A[3],_A[4])',[a:id,a:bufnr,a:row,a:col])
 endfunction
 
 let g:gui_widgets=1

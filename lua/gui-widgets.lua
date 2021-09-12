@@ -3,6 +3,7 @@ ProcId = -1
 ClientChannel = nil
 KvStore = {}
 NextId=1
+NamespaceId = nil
 
 local uv = vim.loop
 
@@ -10,6 +11,7 @@ local function start()
   if Started then
     return
   end
+  NamespaceId = vim.api.nvim_create_namespace("GuiWidget")
   Started = true
 end
 
@@ -24,6 +26,7 @@ local function request(id)
     return
   end
 
+  -- tried plenary.async, coros don't work here yet.
   uv.fs_open(val.path, "r", 438, function(err, fd)
     assert(not err, err)
     uv.fs_fstat(fd, function(err, stat)
@@ -34,8 +37,6 @@ local function request(id)
           id = id;
           mime = val.mime;
           data = data;
-          stat_size = stat.size;
-          str_len = string.len(data);
         })
         uv.fs_close(fd, function(err)
           assert(not err, err)
@@ -68,6 +69,13 @@ end
 
 -- place negative id to unplace
 local function place(id, bufnr, row, col)
+  return vim.api.nvim_buf_set_extmark(bufnr, NamespaceId, row, col, {
+    end_line = 0;
+    end_col = 0;
+    virt_text = { { tostring(id); "GuiWidgetId" } };
+    virt_text_pos = "overlay";
+    virt_text_hide = false
+  })
 end
 
 return {
