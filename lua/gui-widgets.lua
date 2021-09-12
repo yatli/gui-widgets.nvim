@@ -1,27 +1,26 @@
-Started = false
-ProcId = -1
-ClientChannel = nil
-KvStore = {}
-NextId=1
-NamespaceId = nil
-
+local started = false
+local clientChannel = nil
+local kvStore = {}
+local placements = {}
+local nextId=1
+local namespaceId = nil
 local uv = vim.loop
 
 local function start()
-  if Started then
+  if started then
     return
   end
-  NamespaceId = vim.api.nvim_create_namespace("GuiWidget")
-  Started = true
+  namespaceId = vim.api.nvim_create_namespace("GuiWidget")
+  started = true
 end
 
 local function attach(chan)
-  ClientChannel = chan
+  clientChannel = chan
 end
 
 local function request(id)
-  local val = KvStore[id]
-  if ClientChannel == nil or val == nil then
+  local val = kvStore[id]
+  if clientChannel == nil or val == nil then
     vim.cmd("echo 'not really'")
     return
   end
@@ -33,7 +32,7 @@ local function request(id)
       assert(not err, err)
       uv.fs_read(fd, stat.size, 0, function(err, data)
         assert(not err, err)
-        vim.rpcnotify(ClientChannel, "GuiWidgetPut", {
+        vim.rpcnotify(clientChannel, "GuiWidgetPut", {
           id = id;
           mime = val.mime;
           data = data;
@@ -50,10 +49,10 @@ end
 -- param mime: the mime type of the resource
 -- return: a non-negative integer representing the id of the resource
 local function put(path, mime)
-  local id = NextId
-  NextId = NextId + 1
+  local id = nextId
+  nextId = nextId + 1
   -- maybe copy path to tmpfs for immutability?
-  KvStore[id] = {
+  kvStore[id] = {
     path = path;
     mime = mime;
   }
@@ -63,18 +62,47 @@ local function put(path, mime)
 end
 
 -- param id: a resource id
--- param id: a resource id
 local function del(id)
 end
 
--- place negative id to unplace
-local function place(id, bufnr, row, col)
-  return vim.api.nvim_buf_set_extmark(bufnr, NamespaceId, row, col, {
-    end_line = 0;
-    end_col = 0;
-    virt_text = { { tostring(id); "GuiWidgetId" } };
-    virt_text_pos = "overlay";
-    virt_text_hide = false
+-- place non-positive id to unplace
+local function place(id, bufnr, row, col, w, h)
+  if bufnr == 0 then
+    bufnr = vim.api.nvim_get_current_buf()
+  end
+  local mark = vim.api.nvim_buf_set_extmark(bufnr, namespaceId, row, col, {})
+  -- TODO remove
+  local tbl = placements[bufnr]
+  if tbl == nil then
+    tbl = { }
+    placements[bufnr] = tbl
+  end
+  tbl[mark] = { id, w, h }
+  return mark
+end
+
+local function update_view(buf)
+  if clientChannel == nil then
+    return
+  end
+  if type(buf) == "string" then
+    buf = tonumber(buf)
+  elseif buf == nil or buf == 0 then
+    buf = vim.api.nvim_get_current_buf()
+  end
+  local marks = vim.api.nvim_buf_get_extmarks(buf, namespaceId, 0, -1, {})
+  local tbl = placements[buf]
+  if tbl == nil then
+    return
+  end
+  local widgets = {}
+  for i,m in pairs(marks) do
+    local w = tbl[m[1]]
+    widgets[i] = { w[1], m[2], m[3], w[2], w[3] }
+  end
+  vim.rpcnotify(clientChannel, "GuiWidgetUpdateView", {
+    buf = buf;
+    widgets = widgets;
   })
 end
 
@@ -85,4 +113,5 @@ return {
   put = put;
   del = del;
   place = place;
+  update_view = update_view;
 }
