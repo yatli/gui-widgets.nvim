@@ -98,7 +98,9 @@ local function update_view(buf)
   local widgets = {}
   for i,m in pairs(marks) do
     local w = tbl[m[1]]
-    widgets[i] = { w[1], m[2], m[3], w[2], w[3] }
+    -- [ mark_id res_id w h ]
+    -- TODO display attributes (e.g. alignment)
+    widgets[i] = { m[1], w[1], w[2], w[3] }
   end
   vim.rpcnotify(clientChannel, "GuiWidgetUpdateView", {
     buf = buf;

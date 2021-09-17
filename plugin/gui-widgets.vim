@@ -28,10 +28,4 @@ function GuiWidgetUpdateView(buf)
   call luaeval('require("gui-widgets").update_view(_A)',a:buf)
 endfunction
 
-augroup GuiWidget
-  autocmd TextChanged * call luaeval('require("gui-widgets").update_view(_A)', expand("<abuf>"))
-  autocmd TextChangedI * call luaeval('require("gui-widgets").update_view(_A)', expand("<abuf>"))
-  autocmd TextChangedP * call luaeval('require("gui-widgets").update_view(_A)', expand("<abuf>"))
-augroup END
-
 let g:gui_widgets=1
