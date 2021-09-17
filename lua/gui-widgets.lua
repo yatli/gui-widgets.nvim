@@ -66,18 +66,20 @@ local function del(id)
 end
 
 -- place non-positive id to unplace
-local function place(id, bufnr, row, col, w, h)
+local function place(id, bufnr, row, col, w, h, opt)
   if bufnr == 0 then
     bufnr = vim.api.nvim_get_current_buf()
   end
   local mark = vim.api.nvim_buf_set_extmark(bufnr, namespaceId, row, col, {})
+  assert(opt == nil or ((type(opt) == 'table') and not vim.tbl_islist(opt)), 
+         'opt should be a dictionary') 
   -- TODO remove
   local tbl = placements[bufnr]
   if tbl == nil then
     tbl = { }
     placements[bufnr] = tbl
   end
-  tbl[mark] = { id, w, h }
+  tbl[mark] = { id, w, h, opt }
   return mark
 end
 
@@ -98,14 +100,63 @@ local function update_view(buf)
   local widgets = {}
   for i,m in pairs(marks) do
     local w = tbl[m[1]]
-    -- [ mark_id res_id w h ]
-    -- TODO display attributes (e.g. alignment)
-    widgets[i] = { m[1], w[1], w[2], w[3] }
+    -- [ mark_id res_id w h, opt ]
+    widgets[i] = { m[1], w[1], w[2], w[3], w[4] }
   end
   vim.rpcnotify(clientChannel, "GuiWidgetUpdateView", {
     buf = buf;
     widgets = widgets;
   })
+end
+
+-- Sample opt data:
+--  {
+--    ['clicked-widget']=w2;
+--    ['clicked-exec']='silent call VsimToggleColor()';
+--    ['released-widget']=w1;
+--    ['halign']='center';
+--    ['valign']='center';
+--    ['stretch']='uniform';
+--  }
+
+local function mouse_event(buf, mark, ev)
+  local tbl = placements[buf]
+  if tbl == nil then
+    return
+  end
+  local p = tbl[mark]
+  if p == nil then
+    return
+  end
+  local opt = p[4]
+  if ev == 'down' then
+    local click_exec = opt['clicked-exec']
+    if click_exec ~= nil then
+      vim.api.nvim_exec(click_exec, false)
+    end
+    local click_widget = opt['clicked-widget']
+    if click_widget ~= nil then
+      p[1] = click_widget
+      update_view(buf)
+    end
+  elseif ev == 'up' then
+    local release_widget = opt['released-widget']
+    if release_widget ~= nil then
+      p[1] = release_widget
+      update_view(buf)
+    end
+  else
+  end
+end
+
+local function mouse_up(buf, mark)
+  print('mouse up ' .. buf .. ', ' .. mark)
+  mouse_event(buf, mark, 'up')
+end
+
+local function mouse_down(buf, mark)
+  print('mouse down ' .. buf .. ', ' .. mark)
+  mouse_event(buf, mark, 'down')
 end
 
 return {
@@ -116,4 +167,6 @@ return {
   del = del;
   place = place;
   update_view = update_view;
+  mouse_up = mouse_up;
+  mouse_down = mouse_down;
 }

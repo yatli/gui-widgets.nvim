@@ -20,8 +20,12 @@ function GuiWidgetDelete(id)
   return luaeval('require("gui-widgets").del(_A)',a:id)
 endfunction
 
-function GuiWidgetPlace(id,bufnr,row,col,w,h)
-  return luaeval('require("gui-widgets").place(_A[1],_A[2],_A[3],_A[4],_A[5],_A[6])',[a:id,a:bufnr,a:row,a:col,a:w,a:h])
+function GuiWidgetPlace(id,bufnr,row,col,w,h,...)
+  if a:0 > 0
+    return luaeval('require("gui-widgets").place(_A[1],_A[2],_A[3],_A[4],_A[5],_A[6],_A[7])',[a:id,a:bufnr,a:row,a:col,a:w,a:h,a:1])
+  else
+    return luaeval('require("gui-widgets").place(_A[1],_A[2],_A[3],_A[4],_A[5],_A[6])',[a:id,a:bufnr,a:row,a:col,a:w,a:h])
+  endif
 endfunction
 
 function GuiWidgetUpdateView(buf)
