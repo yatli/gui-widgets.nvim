@@ -25,30 +25,38 @@ local function request(id)
     return
   end
 
-  -- tried plenary.async, coros don't work here yet.
-  uv.fs_open(val.path, "r", 438, function(err, fd)
-    assert(not err, err)
-    uv.fs_fstat(fd, function(err, stat)
+  if val.path ~= nil then
+    -- tried plenary.async, coros don't work here yet.
+    uv.fs_open(val.path, "r", 438, function(err, fd)
       assert(not err, err)
-      uv.fs_read(fd, stat.size, 0, function(err, data)
+      uv.fs_fstat(fd, function(err, stat)
         assert(not err, err)
-        vim.rpcnotify(clientChannel, "GuiWidgetPut", {
-          id = id;
-          mime = val.mime;
-          data = data;
-        })
-        uv.fs_close(fd, function(err)
+        uv.fs_read(fd, stat.size, 0, function(err, data)
           assert(not err, err)
+          vim.rpcnotify(clientChannel, "GuiWidgetPut", {
+            id = id;
+            mime = val.mime;
+            data = data;
+          })
+          uv.fs_close(fd, function(err)
+            assert(not err, err)
+          end)
         end)
       end)
     end)
-  end)
+  elseif val.data ~= nil then
+    vim.rpcnotify(clientChannel, "GuiWidgetPut", {
+      id = id;
+      mime = val.mime;
+      data = val.data;
+    })
+  end
 end
 
 -- param path: a path to the resource to put
 -- param mime: the mime type of the resource
 -- return: a non-negative integer representing the id of the resource
-local function put(path, mime)
+local function put_file(path, mime)
   local id = nextId
   nextId = nextId + 1
   -- maybe copy path to tmpfs for immutability?
@@ -60,6 +68,19 @@ local function put(path, mime)
   request(id)
   return id
 end
+
+local function put_data(data, mime)
+  local id = nextId
+  nextId = nextId + 1
+  kvStore[id] = {
+    data = data;
+    mime = mime;
+  }
+  -- push it to the client right away
+  request(id)
+  return id
+end
+
 
 -- param id: a resource id
 local function del(id)
@@ -163,7 +184,8 @@ return {
   start = start;
   attach = attach;
   request = request;
-  put = put;
+  put_file = put_file;
+  put_data = put_data;
   del = del;
   place = place;
   update_view = update_view;

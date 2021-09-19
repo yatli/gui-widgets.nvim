@@ -12,8 +12,12 @@ function GuiWidgetRequest(id)
   call luaeval('require("gui-widgets").request(_A)',a:id)
 endfunction
 
-function GuiWidgetPut(path, mime)
-  return luaeval('require("gui-widgets").put(_A[1],_A[2])', [a:path,a:mime])
+function GuiWidgetPutFile(path, mime)
+  return luaeval('require("gui-widgets").put_file(_A[1],_A[2])', [a:path,a:mime])
+endfunction
+
+function GuiWidgetPutData(data, mime)
+  return luaeval('require("gui-widgets").put_data(_A[1],_A[2])', [a:data,a:mime])
 endfunction
 
 function GuiWidgetDelete(id)
