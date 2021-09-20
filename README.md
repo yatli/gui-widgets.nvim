@@ -67,3 +67,4 @@ Then, refer to the frames by the gui widget ids to update the frame.
 ## TODO
 - `GuiWidgetRequest` should be rpcnotify, not a function -- so it can be used in redraw.
 - win_viewport does not have horizontal scroll information and sign column/number column sizes...
+    - see https://github.com/neovim/neovim/pull/15674

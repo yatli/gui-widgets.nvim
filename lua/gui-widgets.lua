@@ -21,7 +21,6 @@ end
 local function request(id)
   local val = kvStore[id]
   if clientChannel == nil or val == nil then
-    vim.cmd("echo 'not really'")
     return
   end
 
@@ -82,15 +81,30 @@ local function put_data(data, mime)
 end
 
 
--- param id: a resource id
-local function del(id)
+-- param id: a resource id, or an array
+local function del(widgets)
+  if type(widgets) ~= "table" then
+    widgets = { widgets }
+  end
+  for _,i in pairs(widgets) do
+    table.remove(kvStore, i)
+  end
+  vim.rpcnotify(clientChannel, "GuiWidgetDelete", widgets)
+end
+
+local function _buf(buf)
+  if type(buf) == "string" then
+    buf = tonumber(buf)
+  elseif buf == 0 or buf == nil then
+    buf = vim.api.nvim_get_current_buf()
+  end
+
+  return buf
 end
 
 -- place non-positive id to unplace
 local function place(id, bufnr, row, col, w, h, opt)
-  if bufnr == 0 then
-    bufnr = vim.api.nvim_get_current_buf()
-  end
+  bufnr = _buf(bufnr)
   local mark = vim.api.nvim_buf_set_extmark(bufnr, namespaceId, row, col, {})
   assert(opt == nil or ((type(opt) == 'table') and not vim.tbl_islist(opt)), 
          'opt should be a dictionary') 
@@ -108,11 +122,7 @@ local function update_view(buf)
   if clientChannel == nil then
     return
   end
-  if type(buf) == "string" then
-    buf = tonumber(buf)
-  elseif buf == nil or buf == 0 then
-    buf = vim.api.nvim_get_current_buf()
-  end
+  buf = _buf(buf)
   local marks = vim.api.nvim_buf_get_extmarks(buf, namespaceId, 0, -1, {})
   local tbl = placements[buf]
   if tbl == nil then
@@ -180,6 +190,76 @@ local function mouse_down(buf, mark)
   mouse_event(buf, mark, 'down')
 end
 
+local function clear_view(buf)
+  if clientChannel == nil then
+    return
+  end
+  buf = _buf(buf)
+  local tbl = placements[buf]
+  if tbl == nil then
+    return
+  end
+  local widgets = {}
+  for _, p in pairs(tbl) do
+    widgets[#widgets+1] = p[1] -- widget id
+  end
+  del(widgets)
+  placements[buf] = {}
+  vim.api.nvim_buf_clear_namespace(buf, namespaceId, 0, -1)
+end
+
+local _mkd_levelRegexpDict = {
+    [1] = vim.regex [[^\(#[^#]\@=\|.\+\n\=+$\)]];
+    [2] = vim.regex [[^\(##[^#]\@=\|.\+\n-+$\)]];
+    [3] = vim.regex [[^###[^#]\@=]];
+    [4] = vim.regex [[^####[^#]\@=]];
+    [5] = vim.regex [[^#####[^#]\@=]];
+    [6] = vim.regex [[^######[^#]\@=]];
+}
+
+local _mkd_imgRegexp = vim.regex '!\\[[^\\]]*\\](.*?)'
+
+local function refresh_mkd(buf)
+  if clientChannel == nil then return end
+  buf = _buf(buf)
+  clear_view(buf)
+  local nlines = vim.api.nvim_buf_line_count(buf)
+  local function process_headers(i)
+    local level
+    for lev, regex in pairs(_mkd_levelRegexpDict) do
+      if regex:match_line(buf, i) ~= nil then
+        level = lev
+        break
+      end
+    end
+    if not level then
+      return
+    end
+    local line = vim.api.nvim_buf_get_lines(buf,i,i+1,false)[1]
+    line = string.sub(line, level + 1)
+    local w = put_data(line, 'text/plain')
+    local size = (6 - level) / 5 * 2
+    place(w, buf, i, 0, 3 * #line, 2, {
+      ['text-font']='Arial';
+      ['text-scale']=size;
+      ['text-hlid']='Normal';
+      ['hide']='cursorline';
+    })
+  end
+  local function process_imgs(i)
+    local x = _mkd_imgRegexp.match_line(buf, i)
+    if x == nil then return end
+    print(type(x))
+  end
+  for i=0,nlines-1 do
+    process_headers(i)
+  end
+  update_view(buf)
+  --for i,line in pairs(vim.api.nvim_buf_get_lines(buf, 0, -1, false)) do
+    --print('line ' .. i .. ': ' .. line)
+  --end
+end
+
 return {
   start = start;
   attach = attach;
@@ -189,6 +269,9 @@ return {
   del = del;
   place = place;
   update_view = update_view;
+  clear_view = clear_view;
   mouse_up = mouse_up;
   mouse_down = mouse_down;
+
+  refresh_mkd = refresh_mkd;
 }
