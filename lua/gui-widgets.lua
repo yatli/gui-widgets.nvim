@@ -1,11 +1,14 @@
 local started = false
 local clientChannel = nil
 local kvStore = {}
+local downloads = {}
 local placements = {}
 local nextId=1
 local namespaceId = nil
 local uv = vim.loop
 local Path = require'plenary.path'
+local Job = require'plenary.job'
+local Assert = require'luassert.assert'
 
 local function start()
   if started then
@@ -19,6 +22,66 @@ local function attach(chan)
   clientChannel = chan
 end
 
+-- taken from plenary/path.lua, should be exposed imo..
+local function _is_uri (filename)
+  return string.match(filename, "^%w+://") ~= nil
+end
+
+local function _read_file(path, cb)
+  -- tried plenary.async, coros don't work here yet.
+  uv.fs_open(path, "r", 438, function(err, fd)
+    Assert(not err, err)
+    uv.fs_fstat(fd, function(err, stat)
+      Assert(not err, err)
+      uv.fs_read(fd, stat.size, 0, function(err, data)
+        Assert(not err, err)
+        uv.fs_close(fd, function(err)
+          Assert(not err, err)
+          cb(data)
+        end)
+      end)
+    end)
+  end)
+end
+
+local function _make_tmpfile(template, cb)
+  local tmp
+  if Path.path.sep == '/' then
+    tmp = '/tmp'
+  else
+    tmp = os.getenv('TEMP')
+  end
+  template = tostring(Path:new(tmp) / template)
+  uv.fs_mkstemp(template,function(err,fd,path)
+    Assert(not err, err)
+    uv.fs_close(fd, function(err)
+      Assert(not err, err)
+      cb(path)
+    end)
+  end)
+end
+
+local function _download_file(url, cb)
+  local curl
+  if Path.path.sep == '/' then
+    curl = 'curl'
+  else
+    local prog = Path:new(vim.v.progpath)
+    curl = tostring(prog:parent() / "curl.exe")
+  end
+  _make_tmpfile('gui-widgets.downloadXXXXXX',function(path)
+    Job:new({
+      command = curl;
+      args = {url; '-o'; path};
+      enable_handlers = false;
+      on_exit = function(job, code, signal)
+        Assert(code == 0, 'curl exited with non-zero code ' .. code)
+        cb(path)
+      end;
+    }):start()
+  end)
+end
+
 local function request(id)
   local val = kvStore[id]
   if clientChannel == nil or val == nil then
@@ -26,24 +89,12 @@ local function request(id)
   end
 
   if val.path ~= nil then
-    -- tried plenary.async, coros don't work here yet.
-    uv.fs_open(val.path, "r", 438, function(err, fd)
-      assert(not err, err)
-      uv.fs_fstat(fd, function(err, stat)
-        assert(not err, err)
-        uv.fs_read(fd, stat.size, 0, function(err, data)
-          assert(not err, err)
-          vim.rpcnotify(clientChannel, "GuiWidgetPut", {
-            id = id;
-            mime = val.mime;
-            data = data;
-          })
-          uv.fs_close(fd, function(err)
-            assert(not err, err)
-          end)
-        end)
-      end)
-    end)
+    _read_file(val.path, function(data)
+      vim.rpcnotify(clientChannel, "GuiWidgetPut", {
+        id = id;
+        mime = val.mime;
+        data = data;
+      }) end)
   elseif val.data ~= nil then
     vim.rpcnotify(clientChannel, "GuiWidgetPut", {
       id = id;
@@ -53,19 +104,33 @@ local function request(id)
   end
 end
 
--- param path: a path to the resource to put
+-- param path: a path to the resource to put, can be a local file or url
 -- param mime: the mime type of the resource
 -- return: a non-negative integer representing the id of the resource
 local function put_file(path, mime)
   local id = nextId
   nextId = nextId + 1
-  -- maybe copy path to tmpfs for immutability?
-  kvStore[id] = {
-    path = path;
-    mime = mime;
-  }
-  -- push it to the client right away
-  request(id)
+  local function _do_put_file(p)
+    kvStore[id] = {
+      path = p;
+      mime = mime;
+    }
+    -- push it to the client right away
+    request(id)
+  end
+  if path:find('http://', 1, true) == 1 or path:find('https://', 1, true) == 1 then
+    local d = downloads[path]
+    if d == nil then
+      _download_file(path, function(tmp_path)
+        downloads[path] = tmp_path
+        _do_put_file(tmp_path)
+      end)
+    else
+      _do_put_file(d)
+    end
+  else
+    _do_put_file(path)
+  end
   return id
 end
 
@@ -107,7 +172,7 @@ end
 local function place(id, bufnr, row, col, w, h, opt)
   bufnr = _buf(bufnr)
   local mark = vim.api.nvim_buf_set_extmark(bufnr, namespaceId, row, col, {})
-  assert(opt == nil or ((type(opt) == 'table') and not vim.tbl_islist(opt)), 
+  Assert(opt == nil or ((type(opt) == 'table') and not vim.tbl_islist(opt)), 
          'opt should be a dictionary') 
   -- TODO remove
   local tbl = placements[bufnr]
@@ -254,12 +319,12 @@ local function refresh_mkd(buf)
     local s_ = line:find('(', s + 1, true) + 1
     local e_ = e - 1
     local path = Path:new(line:sub(s_, e_))
-    if not path:is_absolute() then
+    if not _is_uri(tostring(path)) and not path:is_absolute() then
       local bufpath = Path:new(vim.api.nvim_buf_get_name(buf))
       path = bufpath:parent() / path
     end
     local w = put_file(tostring(path), 'image/*')
-    img_end = i
+    local img_end = i
     for j=i+1,i+24 do
       local line_below = vim.api.nvim_buf_get_lines(buf,j,j+1,false)[1]
       if line_below == '' then
