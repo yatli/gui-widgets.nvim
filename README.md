@@ -98,6 +98,8 @@ gui.clear_view(buf)
 
 See [the implementation](https://github.com/yatli/gui-widgets.nvim/blob/master/lua/gui-widgets.lua)
 `refresh_mkd` automatically generates UI elements for headers and images.
+Latex math support: $e^{i \pi}+1=0$
+
 
 A thin vimL layer is also provided:
 ```vimL

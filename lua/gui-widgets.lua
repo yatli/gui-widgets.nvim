@@ -285,6 +285,23 @@ local _mkd_levelRegexpDict = {
 
 local _mkd_imgRegexp = vim.regex '!\\[[^\\]]*\\]([^)]*)'
 
+local _mkd_mathRegexp = vim.regex '\\$[^$]*\\$'
+
+-- from: https://gist.github.com/liukun/f9ce7d6d14fa45fe9b924a3eed5c3d99
+local function _char_to_hex(c)
+  return string.format("%%%02X", string.byte(c))
+end
+
+local function _urlencode(url)
+  if url == nil then
+    return
+  end
+  url = url:gsub("\n", "\r\n")
+  url = url:gsub("([^%w ])", _char_to_hex)
+  url = url:gsub(" ", "+")
+  return url
+end
+
 local function refresh_mkd(buf)
   if clientChannel == nil then return end
   buf = _buf(buf)
@@ -340,9 +357,25 @@ local function refresh_mkd(buf)
       ['hide']='cursorline';
     })
   end
+  local function process_math(i)
+    local s,e = _mkd_mathRegexp:match_line(buf, i)
+    if s == nil then return end
+    local line = vim.api.nvim_buf_get_lines(buf,i,i+1,false)[1]
+    local s_ = line:find('$', s + 1, true) + 1
+    local e_ = e - 1
+    local path = 'https://render.githubusercontent.com/render/math?math='.._urlencode(line:sub(s_, e_))
+    local w = put_file(path, 'image/svg')
+    place(w, buf, i, s, e - s, 1, {
+      ['halign']='center';
+      ['valign']='center';
+      ['stretch']='uniform';
+      ['hide']='cursor';
+    })
+  end
   for i=0,nlines-1 do
     process_headers(i)
     process_imgs(i)
+    process_math(i)
   end
   update_view(buf)
 end
