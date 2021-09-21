@@ -5,6 +5,7 @@ local placements = {}
 local nextId=1
 local namespaceId = nil
 local uv = vim.loop
+local Path = require'plenary.path'
 
 local function start()
   if started then
@@ -217,7 +218,7 @@ local _mkd_levelRegexpDict = {
     [6] = vim.regex [[^######[^#]\@=]];
 }
 
-local _mkd_imgRegexp = vim.regex '!\\[[^\\]]*\\](.*?)'
+local _mkd_imgRegexp = vim.regex '!\\[[^\\]]*\\]([^)]*)'
 
 local function refresh_mkd(buf)
   if clientChannel == nil then return end
@@ -236,7 +237,7 @@ local function refresh_mkd(buf)
       return
     end
     local line = vim.api.nvim_buf_get_lines(buf,i,i+1,false)[1]
-    line = string.sub(line, level + 1)
+    line = line:sub(level + 1)
     local w = put_data(line, 'text/plain')
     local size = (6 - level) / 5 * 2
     place(w, buf, i, 0, 3 * #line, 2, {
@@ -247,17 +248,38 @@ local function refresh_mkd(buf)
     })
   end
   local function process_imgs(i)
-    local x = _mkd_imgRegexp.match_line(buf, i)
-    if x == nil then return end
-    print(type(x))
+    local s,e = _mkd_imgRegexp:match_line(buf, i)
+    if s == nil then return end
+    local line = vim.api.nvim_buf_get_lines(buf,i,i+1,false)[1]
+    local s_ = line:find('(', s + 1, true) + 1
+    local e_ = e - 1
+    local path = Path:new(line:sub(s_, e_))
+    if not path:is_absolute() then
+      local bufpath = Path:new(vim.api.nvim_buf_get_name(buf))
+      path = bufpath:parent() / path
+    end
+    local w = put_file(tostring(path), 'image/*')
+    img_end = i
+    for j=i+1,i+24 do
+      local line_below = vim.api.nvim_buf_get_lines(buf,j,j+1,false)[1]
+      if line_below == '' then
+        img_end = j
+      else
+        break
+      end
+    end
+    place(w, buf, i, s, 80, img_end - i + 1, {
+      ['halign']='left';
+      ['valign']='top';
+      ['stretch']='uniform';
+      ['hide']='cursorline';
+    })
   end
   for i=0,nlines-1 do
     process_headers(i)
+    process_imgs(i)
   end
   update_view(buf)
-  --for i,line in pairs(vim.api.nvim_buf_get_lines(buf, 0, -1, false)) do
-    --print('line ' .. i .. ': ' .. line)
-  --end
 end
 
 return {
