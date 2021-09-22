@@ -369,7 +369,7 @@ local function refresh_mkd(buf)
       ['halign']='center';
       ['valign']='center';
       ['stretch']='uniform';
-      ['hide']='cursor';
+      ['hide']='cursorline';
     })
   end
   for i=0,nlines-1 do
