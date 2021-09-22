@@ -73,7 +73,7 @@ local function _download_file(url, cb)
     Job:new({
       command = curl;
       args = {url; '-o'; path};
-      enable_handlers = false;
+      enable_handlers = true;
       on_exit = function(job, code, signal)
         Assert(code == 0, 'curl exited with non-zero code ' .. code)
         cb(path)
