@@ -305,6 +305,24 @@ local _mkd_levelRegexpDict = {
     [6] = vim.regex [[^######[^#]\@=]];
 }
 
+local _mkd_levelScaleDict = {
+  [1] = 2.0;
+  [2] = 1.8;
+  [3] = 1.6;
+  [4] = 1.2;
+  [5] = 1.1;
+  [6] = 1.0;
+}
+
+local _mkd_levelLineDict = {
+  [1] = 2;
+  [2] = 2;
+  [3] = 2;
+  [4] = 1;
+  [5] = 1;
+  [6] = 1;
+}
+
 local _mkd_imgRegexp = vim.regex '!\\[[^\\]]*\\]([^)]*)'
 
 local _mkd_mathRegexp = vim.regex '\\$[^$]*\\$'
@@ -343,8 +361,9 @@ local function refresh_mkd(buf)
     local line = vim.api.nvim_buf_get_lines(buf,i,i+1,false)[1]
     line = line:sub(level + 1)
     local w = put_data(line, 'text/plain')
-    local size = (6 - level) / 5 * 2
-    place(w, buf, i, 0, 3 * #line, 2, {
+    local size = _mkd_levelScaleDict[level]
+    local h = _mkd_levelLineDict[level]
+    place(w, buf, i, 0, 3 * #line, h, {
       ['text-font']='Arial';
       ['text-scale']=size;
       ['text-hlid']='Normal';
