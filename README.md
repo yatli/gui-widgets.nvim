@@ -114,28 +114,28 @@ endfunction
 ```
 
 ## Placement options
-```lua
-  gui.place(w1, 0, 0, 0, 8, 2, {
-    ['clicked-widget']=w2;                            -- displays w2 when clicked
-    ['clicked-exec']='silent call VsimToggleColor()'; -- callback on clicked
-    ['released-widget']=w1;                           -- displays w1 when released
-    ['halign']='center';                              -- left/center/right/stretch
-    ['valign']='center';                              -- top/center/bottom/stretch
-    ['stretch']='uniform';                            -- none/uniform/uniformfill
-  })
 
-  gui.place(w3, 0, 2, 0, 20, 2, {
-    ['text-font']='Arial';
-    ['text-scale']=2;                                 -- relative to guifont size
-    ['text-hlid']='Normal';                           -- semantic highlight group name
-    ['hide']='cursor';                                -- none/cursor/cursorline
-  })
-```
 
-## Animation
+| Name                   | Type              | Description                                                                                            |
+|------------------------|-------------------|--------------------------------------------------------------------------------------------------------|
+| Mouse events           |                   |                                                                                                        |
+| mouse                  | bool              | automatically added to indicate whether a widget is mouse-enabled.                                     |
+| clicked-widget         | widget id         | target widget to display when clicked                                                                  |
+| clicked-exec           | vimL              | callback on mouse clicked                                                                              |
+| released-widget        | widget id         | target widget to display when released                                                                 |
+| released-exec          | vimL              | callback on mouse released                                                                             |
+| Widget display options |                   |                                                                                                        |
+| halign                 | string            | Horizontal alignment: left/center/right/stretch                                                        |
+| valign                 | string            | Vertical alignment: left/center/right/stretch                                                          |
+| stretch                | string            | Image stretch: non/uniform/uniformfill                                                                 |
+| hide                   | string            | Hide widget on cursor overlap: none/cursor/cursorline                                                  |
+| Text display options   |                   |                                                                                                        |
+| text-font              | string            | Font family name for a text widget                                                                     |
+| text-scale             | float             | Font size relative to guifont size. Useful for displaying headers.                                     |
+| text-hlid              | string or integer | A highlight group name. Can be either an integer (1 for default), or a semantic hightlight group name. |
+| Misc.                  |                   |                                                                                                        |
+| svg-themed             | bool              | Theme svg with normal fg/bg.                                                                           |
 
-First put all the frames so the client has them.
-Then, refer to the frames by the gui widget ids to update the frame.
 
 ## TODO
 

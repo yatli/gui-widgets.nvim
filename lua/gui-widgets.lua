@@ -76,6 +76,7 @@ local function _download_file(url, cb)
       enable_handlers = true;
       on_exit = function(job, code, signal)
         Assert(code == 0, 'curl exited with non-zero code ' .. code)
+        -- TODO check signal
         cb(path)
       end;
     }):start()
@@ -168,12 +169,33 @@ local function _buf(buf)
   return buf
 end
 
+-- caller ensures opt is either nil or a table
+-- adds ['mouse']=true if related opts are set
+local function check_mouse_opt(opt)
+  if opt == nil then
+    return
+  end
+  local has_mouse = false
+  for k,v in pairs(opt) do
+    if   k:find('clicked',1,true) == 1
+      or k:find('released',1,true) == 1
+    then
+      has_mouse = true
+      break
+    end
+  end
+  if has_mouse then
+    opt['mouse'] = true
+  end
+end
+
 -- place non-positive id to unplace
 local function place(id, bufnr, row, col, w, h, opt)
   bufnr = _buf(bufnr)
   local mark = vim.api.nvim_buf_set_extmark(bufnr, namespaceId, row, col, {})
   Assert(opt == nil or ((type(opt) == 'table') and not vim.tbl_islist(opt)), 
          'opt should be a dictionary') 
+  check_mouse_opt(opt)
   -- TODO remove
   local tbl = placements[bufnr]
   if tbl == nil then
@@ -369,7 +391,8 @@ local function refresh_mkd(buf)
       ['halign']='center';
       ['valign']='center';
       ['stretch']='uniform';
-      ['hide']='cursorline';
+      ['hide']='cursor';
+      ['svg-themed']=true;
     })
   end
   for i=0,nlines-1 do
