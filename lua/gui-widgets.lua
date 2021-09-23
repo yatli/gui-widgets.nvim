@@ -9,6 +9,10 @@ local uv = vim.loop
 local Path = require'plenary.path'
 local Job = require'plenary.job'
 local Assert = require'luassert.assert'
+local synID = vim.fn.synID
+local synIDtrans = vim.fn.synIDtrans
+local synIDattr = vim.fn.synIDattr
+
 
 local function start()
   if started then
@@ -296,16 +300,26 @@ local function clear_view(buf)
   vim.api.nvim_buf_clear_namespace(buf, namespaceId, 0, -1)
 end
 
-local _mkd_levelRegexpDict = {
-    [1] = vim.regex [[^\(#[^#]\@=\|.\+\n\=+$\)]];
-    [2] = vim.regex [[^\(##[^#]\@=\|.\+\n-+$\)]];
-    [3] = vim.regex [[^###[^#]\@=]];
-    [4] = vim.regex [[^####[^#]\@=]];
-    [5] = vim.regex [[^#####[^#]\@=]];
-    [6] = vim.regex [[^######[^#]\@=]];
+local _hdr_mkd_levelRegexpDict = {
+    [1] = vim.regex [[\(#[^#]\@=\|.\+\n\=+$\)]];
+    [2] = vim.regex [[\(##[^#]\@=\|.\+\n-+$\)]];
+    [3] = vim.regex [[###[^#]\@=]];
+    [4] = vim.regex [[####[^#]\@=]];
+    [5] = vim.regex [[#####[^#]\@=]];
+    [6] = vim.regex [[######[^#]\@=]];
 }
 
-local _mkd_levelScaleDict = {
+-- note the reversed order
+local _hdr_levelRegexpDict = {
+    [1] = vim.regex [[=[^=]\+=]];
+    [2] = vim.regex [[==[^=]\+==]];
+    [3] = vim.regex [[===[^=]\+===]];
+    [4] = vim.regex [[====[^=]\+====]];
+    [5] = vim.regex [[=====[^=]\+=====]];
+    [6] = vim.regex [[======[^=]\+======]];
+}
+
+local _hdr_levelScaleDict = {
   [1] = 2.0;
   [2] = 1.8;
   [3] = 1.6;
@@ -314,7 +328,7 @@ local _mkd_levelScaleDict = {
   [6] = 1.0;
 }
 
-local _mkd_levelLineDict = {
+local _hdr_levelLineDict = {
   [1] = 2;
   [2] = 2;
   [3] = 2;
@@ -323,9 +337,8 @@ local _mkd_levelLineDict = {
   [6] = 1;
 }
 
-local _mkd_imgRegexp = vim.regex '!\\[[^\\]]*\\]([^)]*)'
-
-local _mkd_mathRegexp = vim.regex '\\$[^$]*\\$'
+local _img_Regexp = vim.regex '!\\[[^\\]]*\\]([^)]*)'
+local _math_Regexp = vim.regex '\\$[^$]*\\$'
 
 -- from: https://gist.github.com/liukun/f9ce7d6d14fa45fe9b924a3eed5c3d99
 local function _char_to_hex(c)
@@ -342,28 +355,58 @@ local function _urlencode(url)
   return url
 end
 
-local function refresh_mkd(buf)
+local function refresh_buf(buf)
   if clientChannel == nil then return end
   buf = _buf(buf)
   clear_view(buf)
   local nlines = vim.api.nvim_buf_line_count(buf)
+  local filetype = vim.api.nvim_buf_get_option(buf, 'filetype')
+  local is_mkd = filetype == 'markdown'
+  local hash_is_comment = vim.api.nvim_buf_get_option(buf, 'commentstring') == '#%s'
+  local function check_pos(r,c)
+    if is_mkd then return true end
+    local synid = synID(r+1,c+1,1)
+    synid = synIDtrans(synid)
+    local name = synIDattr(synid, 'name')
+    return name == 'Comment'
+  end
   local function process_headers(i)
-    local level
-    for lev, regex in pairs(_mkd_levelRegexpDict) do
-      if regex:match_line(buf, i) ~= nil then
-        level = lev
-        break
+    local level,s,e
+    local is_mkd_hdr = false
+    if is_mkd or not hash_is_comment then
+      for lev=6,1,-1 do
+        local regex = _hdr_mkd_levelRegexpDict[lev]
+        s, e = regex:match_line(buf, i)
+        if s ~= nil then
+          level = lev
+          is_mkd_hdr = true
+          break
+        end
       end
     end
     if not level then
+      for lev=6,1,-1 do
+        local regex = _hdr_levelRegexpDict[lev]
+        s, e = regex:match_line(buf, i)
+        if s ~= nil then
+          level = lev
+          break
+        end
+      end
+    end
+    if not level or not check_pos(i,s) then
       return
     end
     local line = vim.api.nvim_buf_get_lines(buf,i,i+1,false)[1]
-    line = line:sub(level + 1)
+    if is_mkd_hdr then
+      line = line:sub(s + level + 1)
+    else
+      line = line:sub(s + level + 1, e - level)
+    end
     local w = put_data(line, 'text/plain')
-    local size = _mkd_levelScaleDict[level]
-    local h = _mkd_levelLineDict[level]
-    place(w, buf, i, 0, 3 * #line, h, {
+    local size = _hdr_levelScaleDict[level]
+    local h = _hdr_levelLineDict[level]
+    place(w, buf, i, s, 3 * #line, h, {
       ['text-font']='Arial';
       ['text-scale']=size;
       ['text-hlid']='Normal';
@@ -371,8 +414,8 @@ local function refresh_mkd(buf)
     })
   end
   local function process_imgs(i)
-    local s,e = _mkd_imgRegexp:match_line(buf, i)
-    if s == nil then return end
+    local s,e = _img_Regexp:match_line(buf, i)
+    if s == nil or not check_pos(i,s) then return end
     local line = vim.api.nvim_buf_get_lines(buf,i,i+1,false)[1]
     local s_ = line:find('(', s + 1, true) + 1
     local e_ = e - 1
@@ -399,8 +442,8 @@ local function refresh_mkd(buf)
     })
   end
   local function process_math(i)
-    local s,e = _mkd_mathRegexp:match_line(buf, i)
-    if s == nil then return end
+    local s,e = _math_Regexp:match_line(buf, i)
+    if s == nil or not check_pos(i, s) then return end
     local line = vim.api.nvim_buf_get_lines(buf,i,i+1,false)[1]
     local s_ = line:find('$', s + 1, true) + 1
     local e_ = e - 1
@@ -435,5 +478,5 @@ return {
   mouse_up = mouse_up;
   mouse_down = mouse_down;
 
-  refresh_mkd = refresh_mkd;
+  refresh_buf = refresh_buf;
 }

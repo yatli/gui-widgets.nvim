@@ -36,4 +36,15 @@ function GuiWidgetUpdateView(buf)
   call luaeval('require("gui-widgets").update_view(_A)',a:buf)
 endfunction
 
+augroup GuiWidgets
+    " Taken from markdown.vim
+    autocmd! *
+    autocmd BufWinEnter * lua require("gui-widgets").refresh_buf(0)
+    " autocmd BufUnload <buffer> call s:MarkdownClearSyntaxVariables()
+    autocmd BufWritePost * lua require("gui-widgets").refresh_buf(0)
+    autocmd InsertEnter,InsertLeave * lua require("gui-widgets").refresh_buf(0)
+    " autocmd CursorHold,CursorHoldI * lua require("gui-widgets").refresh_buf(0)
+augroup END
+
+
 let g:gui_widgets=1
