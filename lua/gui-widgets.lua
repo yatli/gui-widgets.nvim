@@ -339,6 +339,7 @@ local _hdr_levelLineDict = {
 
 local _img_Regexp = vim.regex '!\\[[^\\]]*\\]([^)]*)'
 local _math_Regexp = vim.regex '\\$[^$]*\\$'
+local _cpp_ish = { ['c']=true; ['cpp']=true; ['objc']=true; ['objcpp']=true; ['cs']=true; ['fsharp']=true; ['cuda']=true; ['asm']=true; }
 
 -- from: https://gist.github.com/liukun/f9ce7d6d14fa45fe9b924a3eed5c3d99
 local function _char_to_hex(c)
@@ -362,7 +363,9 @@ local function refresh_buf(buf)
   local nlines = vim.api.nvim_buf_line_count(buf)
   local filetype = vim.api.nvim_buf_get_option(buf, 'filetype')
   local is_mkd = filetype == 'markdown'
-  local hash_is_comment = vim.api.nvim_buf_get_option(buf, 'commentstring') == '#%s'
+  local commentstring = vim.api.nvim_buf_get_option(buf, 'commentstring')
+  local hash_is_comment = (commentstring:find('#',1,true)==1)
+  local cpp_ish = (_cpp_ish[filetype] ~= nil)
   local function check_pos(r,c)
     if is_mkd then return true end
     local synid = synID(r+1,c+1,1)
@@ -373,23 +376,25 @@ local function refresh_buf(buf)
   local function process_headers(i)
     local level,s,e
     local is_mkd_hdr = false
-    if is_mkd or not hash_is_comment then
-      for lev=6,1,-1 do
+    if is_mkd or (not hash_is_comment and not cpp_ish) then
+      for lev=1,6 do
         local regex = _hdr_mkd_levelRegexpDict[lev]
         s, e = regex:match_line(buf, i)
         if s ~= nil then
           level = lev
           is_mkd_hdr = true
+        else
           break
         end
       end
     end
     if not level then
-      for lev=6,1,-1 do
+      for lev=1,6 do
         local regex = _hdr_levelRegexpDict[lev]
         s, e = regex:match_line(buf, i)
         if s ~= nil then
           level = lev
+        else
           break
         end
       end
@@ -402,15 +407,6 @@ local function refresh_buf(buf)
     if is_mkd_hdr then
       s_ = line:find('#', s_, true)
       line = line:sub(s_ + level)
-      if line:find('define ', 1, true) == 1 or
-         line:find('include', 1, true) == 1 or
-         line:find('ifdef', 1, true) == 1 or
-         line:find('if ', 1, true) == 1 or
-         line:find('else ', 1, true) == 1 or
-         line:find('end', 1, true) == 1 or
-         line:find('pragma ', 1, true) == 1 then
-         return
-       end
     else
       s_ = line:find('=', s_, true)
       line = line:sub(s_ + level, e - level)
