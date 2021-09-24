@@ -402,6 +402,15 @@ local function refresh_buf(buf)
     if is_mkd_hdr then
       s_ = line:find('#', s_, true)
       line = line:sub(s_ + level)
+      if line:find('define ', 1, true) == 1 or
+         line:find('include', 1, true) == 1 or
+         line:find('ifdef', 1, true) == 1 or
+         line:find('if ', 1, true) == 1 or
+         line:find('else ', 1, true) == 1 or
+         line:find('end', 1, true) == 1 or
+         line:find('pragma ', 1, true) == 1 then
+         return
+       end
     else
       s_ = line:find('=', s_, true)
       line = line:sub(s_ + level, e - level)
