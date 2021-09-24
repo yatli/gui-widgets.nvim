@@ -301,22 +301,22 @@ local function clear_view(buf)
 end
 
 local _hdr_mkd_levelRegexpDict = {
-    [1] = vim.regex [[\(#[^#]\@=\|.\+\n\=+$\)]];
-    [2] = vim.regex [[\(##[^#]\@=\|.\+\n-+$\)]];
-    [3] = vim.regex [[###[^#]\@=]];
-    [4] = vim.regex [[####[^#]\@=]];
-    [5] = vim.regex [[#####[^#]\@=]];
-    [6] = vim.regex [[######[^#]\@=]];
+    [1] = vim.regex [[^[^:alnum:#]*\(#[^#]\@=\|.\+\n\=+$\)]];
+    [2] = vim.regex [[^[^:alnum:#]*\(##[^#]\@=\|.\+\n-+$\)]];
+    [3] = vim.regex [[^[^:alnum:#]*###[^#]\@=]];
+    [4] = vim.regex [[^[^:alnum:#]*####[^#]\@=]];
+    [5] = vim.regex [[^[^:alnum:#]*#####[^#]\@=]];
+    [6] = vim.regex [[^[^:alnum:#]*######[^#]\@=]];
 }
 
 -- note the reversed order
 local _hdr_levelRegexpDict = {
-    [1] = vim.regex [[=[^=]\+=]];
-    [2] = vim.regex [[==[^=]\+==]];
-    [3] = vim.regex [[===[^=]\+===]];
-    [4] = vim.regex [[====[^=]\+====]];
-    [5] = vim.regex [[=====[^=]\+=====]];
-    [6] = vim.regex [[======[^=]\+======]];
+    [1] = vim.regex [[^[^:alnum:=]*=[^=]\+=]];
+    [2] = vim.regex [[^[^:alnum:=]*==[^=]\+==]];
+    [3] = vim.regex [[^[^:alnum:=]*===[^=]\+===]];
+    [4] = vim.regex [[^[^:alnum:=]*====[^=]\+====]];
+    [5] = vim.regex [[^[^:alnum:=]*=====[^=]\+=====]];
+    [6] = vim.regex [[^[^:alnum:=]*======[^=]\+======]];
 }
 
 local _hdr_levelScaleDict = {
@@ -398,15 +398,18 @@ local function refresh_buf(buf)
       return
     end
     local line = vim.api.nvim_buf_get_lines(buf,i,i+1,false)[1]
+    local s_ = s + 1
     if is_mkd_hdr then
-      line = line:sub(s + level + 1)
+      s_ = line:find('#', s_, true)
+      line = line:sub(s_ + level)
     else
-      line = line:sub(s + level + 1, e - level)
+      s_ = line:find('=', s_, true)
+      line = line:sub(s_ + level, e - level)
     end
     local w = put_data(line, 'text/plain')
     local size = _hdr_levelScaleDict[level]
     local h = _hdr_levelLineDict[level]
-    place(w, buf, i, s, 3 * #line, h, {
+    place(w, buf, i, s_-1, 3 * #line, h, {
       ['text-font']='Arial';
       ['text-scale']=size;
       ['text-hlid']='Normal';
