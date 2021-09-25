@@ -301,22 +301,22 @@ local function clear_view(buf)
 end
 
 local _hdr_mkd_levelRegexpDict = {
-    [1] = vim.regex [[^[^:alnum:#]*\(#[^#]\@=\|.\+\n\=+$\)]];
-    [2] = vim.regex [[^[^:alnum:#]*\(##[^#]\@=\|.\+\n-+$\)]];
-    [3] = vim.regex [[^[^:alnum:#]*###[^#]\@=]];
-    [4] = vim.regex [[^[^:alnum:#]*####[^#]\@=]];
-    [5] = vim.regex [[^[^:alnum:#]*#####[^#]\@=]];
-    [6] = vim.regex [[^[^:alnum:#]*######[^#]\@=]];
+    [1] = vim.regex [[^[^:alnum:]*\(#[^#]\@=\|.\+\n\=+$\)]];
+    [2] = vim.regex [[^[^:alnum:]*\(##[^#]\@=\|.\+\n-+$\)]];
+    [3] = vim.regex [[^[^:alnum:]*###[^#]\@=]];
+    [4] = vim.regex [[^[^:alnum:]*####[^#]\@=]];
+    [5] = vim.regex [[^[^:alnum:]*#####[^#]\@=]];
+    [6] = vim.regex [[^[^:alnum:]*######[^#]\@=]];
 }
 
 -- note the reversed order
 local _hdr_levelRegexpDict = {
-    [1] = vim.regex [[^[^:alnum:=]*=[^=]\+=]];
-    [2] = vim.regex [[^[^:alnum:=]*==[^=]\+==]];
-    [3] = vim.regex [[^[^:alnum:=]*===[^=]\+===]];
-    [4] = vim.regex [[^[^:alnum:=]*====[^=]\+====]];
-    [5] = vim.regex [[^[^:alnum:=]*=====[^=]\+=====]];
-    [6] = vim.regex [[^[^:alnum:=]*======[^=]\+======]];
+    [1] = vim.regex [[^[^:alnum:]*=[^=]\+=]];
+    [2] = vim.regex [[^[^:alnum:]*==[^=]\+==]];
+    [3] = vim.regex [[^[^:alnum:]*===[^=]\+===]];
+    [4] = vim.regex [[^[^:alnum:]*====[^=]\+====]];
+    [5] = vim.regex [[^[^:alnum:]*=====[^=]\+=====]];
+    [6] = vim.regex [[^[^:alnum:]*======[^=]\+======]];
 }
 
 local _hdr_levelScaleDict = {
