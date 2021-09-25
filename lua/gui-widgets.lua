@@ -368,6 +368,7 @@ local function refresh_buf(buf)
   local cpp_ish = (_cpp_ish[filetype] ~= nil)
   local function check_pos(r,c)
     if is_mkd then return true end
+    if not r or not c then return false end
     local synid = synID(r+1,c+1,1)
     synid = synIDtrans(synid)
     local name = synIDattr(synid, 'name')
@@ -379,8 +380,10 @@ local function refresh_buf(buf)
     if is_mkd or (not hash_is_comment and not cpp_ish) then
       for lev=1,6 do
         local regex = _hdr_mkd_levelRegexpDict[lev]
-        s, e = regex:match_line(buf, i)
-        if s ~= nil then
+        local s__, e__ = regex:match_line(buf, i)
+        if s__ ~= nil then
+          s = s__
+          e = e__
           level = lev
           is_mkd_hdr = true
         else
@@ -391,8 +394,10 @@ local function refresh_buf(buf)
     if not level then
       for lev=1,6 do
         local regex = _hdr_levelRegexpDict[lev]
-        s, e = regex:match_line(buf, i)
-        if s ~= nil then
+        local s__, e__ = regex:match_line(buf, i)
+        if s__ ~= nil then
+          s = s__
+          e = e__
           level = lev
         else
           break
