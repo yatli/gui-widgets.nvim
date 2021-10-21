@@ -20,6 +20,10 @@ function GuiWidgetPutData(data, mime)
   return luaeval('require("gui-widgets").put_data(_A[1],_A[2])', [a:data,a:mime])
 endfunction
 
+function GuiWidgetPutBase64(data, mime)
+  return luaeval('require("gui-widgets").put_base64(_A[1],_A[2])', [a:data,a:mime])
+endfunction
+
 function GuiWidgetDelete(id)
   return luaeval('require("gui-widgets").del(_A)',a:id)
 endfunction

@@ -9,6 +9,7 @@ local uv = vim.loop
 local Path = require'plenary.path'
 local Job = require'plenary.job'
 local Assert = require'luassert.assert'
+local Base64 = require'base64'
 local synID = vim.fn.synID
 local synIDtrans = vim.fn.synIDtrans
 local synIDattr = vim.fn.synIDattr
@@ -149,6 +150,11 @@ local function put_data(data, mime)
   -- push it to the client right away
   request(id)
   return id
+end
+
+local function put_base64(data, mime)
+  local bin = Base64.decode(data)
+  return put_data(bin, mime)
 end
 
 
@@ -484,6 +490,7 @@ return {
   request = request;
   put_file = put_file;
   put_data = put_data;
+  put_base64 = put_base64;
   del = del;
   place = place;
   update_view = update_view;
