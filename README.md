@@ -1,6 +1,5 @@
 # gui-widgets.nvim -- supporting library for gui widgets
 
-
 ![recursive screenshot](media/1.png)
 
 
@@ -21,7 +20,6 @@
 
 
 ## For Front-End Devs:
-
 Front-end GUI startup logic:
 ```vimL
 if exists("g:gui_widgets")
@@ -75,7 +73,6 @@ Some MIME types worth implementing are:
 - Suggestions? :)
 
 ## For Plugin Devs
-
 `local gui = require'gui-widgets'` to begin with. 
 
 ```lua
@@ -115,7 +112,6 @@ endfunction
 
 ## Placement options
 
-
 | Name                   | Type              | Description                                                                                            |
 |------------------------|-------------------|--------------------------------------------------------------------------------------------------------|
 | Mouse events           |                   |                                                                                                        |
@@ -129,6 +125,7 @@ endfunction
 | valign                 | string            | Vertical alignment: left/center/right/stretch                                                          |
 | stretch                | string            | Image stretch: non/uniform/uniformfill                                                                 |
 | hide                   | string            | Hide widget on cursor overlap: none/cursor/cursorline                                                  |
+| virt-lines             | bool              | Add virt_lines to make up the widget height                                                            |
 | Text display options   |                   |                                                                                                        |
 | text-font              | string            | Font family name for a text widget                                                                     |
 | text-scale             | float             | Font size relative to guifont size. Useful for displaying headers.                                     |
@@ -138,7 +135,6 @@ endfunction
 
 
 ## TODO
-
 - `GuiWidgetRequest` should be rpcnotify, not a function -- so it can be used in redraw.
 - win_viewport does not have horizontal scroll information and sign column/number column sizes...
     - see https://github.com/neovim/neovim/pull/15674

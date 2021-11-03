@@ -202,17 +202,30 @@ end
 -- place non-positive id to unplace
 local function place(id, bufnr, row, col, w, h, opt)
   bufnr = _buf(bufnr)
-  local mark = vim.api.nvim_buf_set_extmark(bufnr, namespaceId, row, col, {})
+  local mark = vim.api.nvim_buf_set_extmark(bufnr, namespaceId, row, col, {
+    virt_text={{'','IncSearch'}},
+    virt_text_pos='overlay'
+  })
   Assert(opt == nil or ((type(opt) == 'table') and not vim.tbl_islist(opt)), 
          'opt should be a dictionary') 
   check_mouse_opt(opt)
   -- TODO remove
   local tbl = placements[bufnr]
+  local opt_virt_lines = opt['virt-lines']
   if tbl == nil then
     tbl = { }
     placements[bufnr] = tbl
   end
   tbl[mark] = { id, w, h, opt }
+  if h > 1 and opt_virt_lines then
+    local lines = {}
+    for i=1,h-1 do
+      lines[i] = {{'','Normal'}}
+    end
+    vim.api.nvim_buf_set_extmark(bufnr, namespaceId, row, 1, {
+      virt_lines=lines
+    })
+  end
   return mark
 end
 
@@ -227,10 +240,14 @@ local function update_view(buf)
     return
   end
   local widgets = {}
-  for i,m in pairs(marks) do
+  local idx = 1
+  for _,m in pairs(marks) do
     local w = tbl[m[1]]
-    -- [ mark_id res_id w h, opt ]
-    widgets[i] = { m[1], w[1], w[2], w[3], w[4] }
+    if w then
+      -- [ mark_id res_id w h, opt ]
+      widgets[idx] = { m[1], w[1], w[2], w[3], w[4] }
+      idx = idx + 1
+    end
   end
   vim.rpcnotify(clientChannel, "GuiWidgetUpdateView", {
     buf = buf;
@@ -430,6 +447,7 @@ local function refresh_buf(buf)
       ['text-scale']=size;
       ['text-hlid']='Normal';
       ['hide']='cursorline';
+      ['virt-lines']=true;
     })
   end
   local function process_imgs(i)
