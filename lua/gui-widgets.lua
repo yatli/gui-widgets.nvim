@@ -204,7 +204,8 @@ local function place(id, bufnr, row, col, w, h, opt)
   bufnr = _buf(bufnr)
   local mark = vim.api.nvim_buf_set_extmark(bufnr, namespaceId, row, col, {
     virt_text={{'','IncSearch'}},
-    virt_text_pos='overlay'
+    virt_text_pos='overlay',
+    ui_watched=true
   })
   Assert(opt == nil or ((type(opt) == 'table') and not vim.tbl_islist(opt)), 
          'opt should be a dictionary') 
